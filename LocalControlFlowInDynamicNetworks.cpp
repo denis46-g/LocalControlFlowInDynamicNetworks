@@ -9,6 +9,7 @@
 #include<algorithm>
 #include<exception>
 #include <sstream>
+#include<set>
 
 using namespace sf;
 using namespace std;
@@ -21,10 +22,10 @@ int T;
 class Edge {
 public:
 
-    int c; // пропускная способность дуги
-    int flow; // поток из данной вершины в вершину v
+    double c; // пропускная способность дуги
+    double flow; // поток из данной вершины в вершину v
 
-    Edge(int C, int Flow) : c(C), flow(Flow) {
+    Edge(double C, double Flow) : c(C), flow(Flow) {
 
     }
 
@@ -35,8 +36,11 @@ public:
     }
 };
 
+vector<vector<vector<double>>> simplegraph;
 vector<vector<Edge>> graph;
-vector<vector<int>> min_razrez;
+map<int, set<int>> vertextimescanfragmentation;
+
+vector<pair<vector<int>, double>> min_razrez;
 vector<int> managed_vertexes;
 vector<int> not_managed_vertexes;
 
@@ -50,7 +54,7 @@ void CreateSimpleGraph(int N) {
         fin >> k;
         for (int v = 0; v < k; v++) {
             fin >> vtx >> c;
-            graph[u][vtx] = Edge(stoi(c.substr(1,c.size() - 2)), 0);
+            graph[u][vtx] = Edge(stod(c.substr(1,c.size() - 2)), 0);
         }
     }
 }
@@ -58,9 +62,10 @@ void CreateSimpleGraph(int N) {
 //создание временной развёртки графа
 void CreateGraphTimeScan(int N, int T) {
     graph = vector<vector<Edge>>(T * N + 1, vector<Edge>(T * N + 2));
+    simplegraph = vector<vector<vector<double>>>(N - 1, vector<vector<double>>(N));
 
     for (int i = 1; i <= T; i++) {
-        graph[0][i] = Edge(INT32_MAX, 0);
+        graph[0][i] = Edge(DBL_MAX, 0);
     }
 
     int k, vtx;
@@ -73,13 +78,15 @@ void CreateGraphTimeScan(int N, int T) {
             stringstream c_str(c);
             for (int i = 0; i < T; i++) {
                 getline(c_str, cc, ',');
-                graph[T * u + i + 1][T * vtx + 1 + (i + 1) % T] = Edge(stoi(cc), 0);
+                simplegraph[u][vtx].push_back(stod(cc));
+                graph[T * u + i + 1][T * vtx + 1 + (i + 1) % T] = Edge(stod(cc), 0);
+                vertextimescanfragmentation[u].insert(T * u + i + 1);
             }
         }
     }
 
     for (int i = 1; i <= T; i++) {
-        graph[T * (N - 1) + i][T * N + 1] = Edge(INT32_MAX, 0);
+        graph[T * (N - 1) + i][T * N + 1] = Edge(DBL_MAX, 0);
     }
 }
 
@@ -99,19 +106,19 @@ void Create_Graph()
     sz = graph.size() + 1;
 }
 
-int min(int a, int b)
+double min(double a, double b)
 {
     return a < b ? a : b;
 }
 
 //вычисляет максимальный поток и находит минимальный разрез сети
-int MaxFlow()
+double MaxFlow()
 {
-    int res = 0;
+    double res = 0;
 
     vector<int> color(sz);
-    vector<vector<int>> flows = vector<vector<int>>(sz, vector<int>{0, 0, 0});
-    flows[0][2] = INT32_MAX;
+    vector<vector<double>> flows = vector<vector<double>>(sz, vector<double>{0, 0, 0});
+    flows[0][2] = DBL_MAX;
 
     queue<int> q;
     q.push(0);
@@ -130,7 +137,7 @@ int MaxFlow()
 
                 q.push(v);
                 color[v] = 1;
-                flows[v] = vector<int>{ u, 1, min(graph[u][v].c - graph[u][v].flow,flows[u][2]) };
+                flows[v] = vector<double>{ double(u), 1, min(graph[u][v].c - graph[u][v].flow,flows[u][2]) };
 
                 if (v == sz - 1) {
 
@@ -149,8 +156,8 @@ int MaxFlow()
                         u = flows[u][0];
                     }
 
-                    flows = vector<vector<int>>(sz, vector<int>{0, 0, 0});
-                    flows[0][2] = INT32_MAX;
+                    flows = vector<vector<double>>(sz, vector<double>{0, 0, 0});
+                    flows[0][2] = DBL_MAX;
                     color = vector<int>(sz);
                     q = queue<int>{};
                     q.push(0);
@@ -161,7 +168,7 @@ int MaxFlow()
             {
                 q.push(v);
                 color[v] = 1;
-                flows[v] = vector<int>{ u, -1, min(graph[v][u].flow,flows[u][2]) };
+                flows[v] = vector<double>{ double(u), -1, min(graph[v][u].flow,flows[u][2]) };
             }
         }
 
@@ -171,11 +178,11 @@ int MaxFlow()
             color[u] = 2;
     }
 
-    int sum = 0;
+    double sum = 0;
     for (int u = 0; u < sz - 1; u++) {
         for (int v = 0; v < sz; v++) {
             if (graph[u][v].flow == graph[u][v].c && graph[u][v].c && sum + graph[u][v].flow <= res) {
-                min_razrez.push_back(vector<int>{u, v, graph[u][v].flow});
+                min_razrez.push_back(pair < vector<int>, double >{vector<int>{u, v}, graph[u][v].flow});
                 sum += graph[u][v].flow;
             }
         }
@@ -199,7 +206,7 @@ void print_graph()
 void print_min_razrez()
 {
     for (auto e : min_razrez) {
-        cout << "(" << e[0] << " , " << e[1] << ") : " << e[2] << endl;
+        cout << "(" << e.first[0] << " , " << e.first[1] << ") : " << e.second << endl;
     }
     cout << endl;
 }
@@ -214,8 +221,22 @@ void StopFlow()
     min_razrez.resize(0);
 }
 
+string deleteUnImportantZeros(string s) {
+    auto count = 0;
+    for (int i = s.size() - 1; i >= 0; i--) {
+        if (s[i] == '0')
+            count++;
+        else {
+            if (s[i] == '.' || s[i] == ',')
+                count++;
+            break;
+        }
+    }
+    return s.substr(0, s.size() - count);
+}
+
 //определяет, можно ли уменьшить максимальный поток в сети на заданное значение d
-int PossibleToLowMaxFlow(int d, int maxflow)
+double PossibleToLowMaxFlow(double d, double maxflow)
 {
     //удаляем управляемые вершины из сети и инцидентные им дуги (присваиваем дугам пропускные способности 0)
     for (auto v : managed_vertexes)
@@ -252,19 +273,22 @@ int PossibleToLowMaxFlow(int d, int maxflow)
 
 int main()
 {
-    setlocale(LC_ALL, "russian");
+    //setlocale(LC_ALL, "russian");
 
-    RenderWindow window1(VideoMode(1400, 800), L"Исходная сеть", Style::Default);
+    locale::global(locale("en_US.UTF-8"));
 
+    const wchar_t* window1Name = T == 1 ? L"Исходная сеть" : L"Временная развёртка исходной сети";
+    RenderWindow window1(VideoMode(1400, 800), window1Name, Style::Default);
     window1.setVerticalSyncEnabled(true);
 
-    int maxflow = 0, new_max_flow = 0;
-    int d = -1;
+    double maxflow = 0, new_max_flow = 0;
+    double d = -1;
     int k = 0;
     int x, y;
     Font font;
     font.loadFromFile("arial.ttf");
     srand(time(NULL));
+
     while (window1.isOpen())
     {
         Event event1;
@@ -282,15 +306,94 @@ int main()
 
             Create_Graph();
 
-            cout << "Граф" << endl;
+            setlocale(LC_ALL, "russian");
+            cout << "Граф:\n" << endl;
+            //locale::global(locale("en_US.UTF-8"));
             print_graph();
             maxflow = MaxFlow();
-            cout << "Макс. поток = " << maxflow << endl;
+            cout << "\nМаксимальный поток = " << maxflow << endl;
             print_graph();
-            cout << "Мин. разрез :" << endl;
+            cout << "\nМинимальный разрез :" << endl;
             print_min_razrez();
 
-            //---------- Визуализация 1 ------------------
+            //------- Визуализация 1.0 (сам граф, если T > 1) -------
+            RenderWindow window0(VideoMode(1400, 800), L"Исходная сеть", Style::Default);
+            if (T > 1) {
+                window0.setVerticalSyncEnabled(true);
+
+                vector<CircleShape> draw_vertices = vector<CircleShape>();
+
+                for (int i = 0; i < N; i++)
+                {
+                    CircleShape draw_vertex(25);
+                    x = rand() % 1350;
+                    y = rand() % 750;
+                    draw_vertex.setPosition(x, y);
+                    draw_vertex.setFillColor(Color::Red);
+                    draw_vertices.push_back(draw_vertex);
+                }
+
+                window0.clear(Color::Black);
+
+                VertexArray lines(LinesStrip, 0);
+                int m = 0;
+                for (int i = 0; i < N - 1; i++)
+                {
+                    for (int j = 0; j < N; j++)
+                    {
+                        if (simplegraph[i][j].size() > 0) {
+                            lines.append(Vertex(Vector2f(draw_vertices[i].getPosition().x + 12.5, draw_vertices[i].getPosition().y + 12.5)));
+                            lines.append(Vertex(Vector2f(draw_vertices[j].getPosition().x + 12.5, draw_vertices[j].getPosition().y + 12.5)));
+                            lines[m].color = Color::White;
+                            lines[m + 1].color = Color::White;
+
+                            Text draw_c_f;
+                            draw_c_f.setFont(font);
+                            draw_c_f.setCharacterSize(20);
+
+                            string s = "{ ";
+                            for (int e = 0; e < simplegraph[i][j].size(); e++) {
+                                if (simplegraph[i][j][e] > 0)
+                                {
+                                    s += deleteUnImportantZeros(to_string(simplegraph[i][j][e])) + " ; ";
+                                }
+                            }
+                            s = s.substr(0, s.size() - 3);
+                            s += " }";
+
+                            draw_c_f.setString(s);
+
+                            draw_c_f.setFillColor(Color::Yellow);
+                            draw_c_f.setPosition((draw_vertices[i].getPosition().x + 12.5 + draw_vertices[j].getPosition().x + 12.5) / 2.0, (draw_vertices[i].getPosition().y + 12.5 + draw_vertices[j].getPosition().y + 12.5) / 2.0);
+                            draw_c_f.setStyle(sf::Text::Bold);
+                            window0.draw(draw_c_f);
+
+                            m += 2;
+                        }
+                    }
+                }
+                m -= 2;
+
+                for (int i = 0; i < draw_vertices.size(); i++)
+                {
+                    window0.draw(draw_vertices[i]);
+                    Text draw_vertex_number;
+                    draw_vertex_number.setFont(font);
+                    draw_vertex_number.setCharacterSize(25);
+                    draw_vertex_number.setString(to_string(i));
+                    draw_vertex_number.setFillColor(Color::Yellow);
+                    draw_vertex_number.setPosition(draw_vertices[i].getPosition().x + 12.5, draw_vertices[i].getPosition().y + 12.5);
+                    draw_vertex_number.setStyle(sf::Text::Bold);
+                    window0.draw(draw_vertex_number);
+                }
+
+                window0.draw(lines);
+                window0.display();
+            }
+            else
+                window0.close();
+
+            //------- Визуализация 1 (1.1) (сам граф при T = 1 либо его временная развёртка при T > 1) -------
             vector<CircleShape> draw_vertices = vector<CircleShape>();
             
             for (int i = 0; i < sz; i++)
@@ -307,14 +410,12 @@ int main()
 
             VertexArray lines(LinesStrip, 0);
             int m = 0;
-            //int kk = 0;
             for (int i = 0; i < sz - 1; i++)
             {
                 for (int j = 0; j < sz; j++)
                 {
                     if (graph[i][j].c > 0)
                     {
-                        //kk++;
                         lines.append(Vertex(Vector2f(draw_vertices[i].getPosition().x + 12.5, draw_vertices[i].getPosition().y + 12.5)));
                         lines.append(Vertex(Vector2f(draw_vertices[j].getPosition().x + 12.5, draw_vertices[j].getPosition().y + 12.5)));
                         lines[m].color = Color::White;
@@ -323,7 +424,10 @@ int main()
                         Text draw_c_f;
                         draw_c_f.setFont(font);
                         draw_c_f.setCharacterSize(20);
-                        draw_c_f.setString(to_string(graph[i][j].c) + "," + to_string(graph[i][j].flow));
+                        if(graph[i][j].c != DBL_MAX)
+                            draw_c_f.setString(deleteUnImportantZeros(to_string(graph[i][j].c)) + " ; " + deleteUnImportantZeros(to_string(graph[i][j].flow)));
+                        else
+                            draw_c_f.setString("inf ; " + deleteUnImportantZeros(to_string(graph[i][j].flow)));
                         draw_c_f.setFillColor(Color::Yellow);
                         draw_c_f.setPosition((draw_vertices[i].getPosition().x + 12.5 + draw_vertices[j].getPosition().x + 12.5)/2.0, (draw_vertices[i].getPosition().y + 12.5 + draw_vertices[j].getPosition().y + 12.5) / 2.0);
                         draw_c_f.setStyle(sf::Text::Bold);
@@ -350,7 +454,10 @@ int main()
             Text draw_max_flow;
             draw_max_flow.setFont(font);
             draw_max_flow.setCharacterSize(25);
-            draw_max_flow.setString("V* = " + to_string(maxflow));
+
+            //draw_max_flow.setString("V* = " + (maxflow == int(maxflow) ? to_string(int(maxflow)) : to_string(maxflow)));
+            draw_max_flow.setString("V* = " + deleteUnImportantZeros(to_string(maxflow)));
+
             draw_max_flow.setFillColor(Color::Yellow);
             draw_max_flow.setPosition(10, 10);
             draw_max_flow.setStyle(sf::Text::Bold);
@@ -360,20 +467,24 @@ int main()
 
             StopFlow();
 
-
-
             cout << "\nВведите значение, на которое Вы хотели бы уменьшить максимальный поток в сети : " << endl;
             cin >> d;
             cin.clear();
             cin.ignore();
 
-            cout << "\nВведите множество управляемых вершин (номера от 0 до " << sz - 2 << " )" << endl;
+            //cout << "\nВведите множество управляемых вершин (номера вершин от 0 до " << sz - 2 << " )" << endl;
+            cout << "\nВведите множество управляемых вершин (номера вершин от 0 до " << N - 2 << " )" << endl;
             string S;
             getline(cin, S);
             int i = 0;
             while (S[i] != '\0') {
                 if (S[i] != ' ')
-                    managed_vertexes.push_back(S[i] - '0');
+                    if(T == 1)
+                        managed_vertexes.push_back(S[i] - '0');
+                    else {
+                        for(auto u: vertextimescanfragmentation[S[i] - '0'])
+                            managed_vertexes.push_back(u);
+                    }
                 i++;
             }
             for (int i = 0; i < sz; i++)
@@ -406,7 +517,7 @@ int main()
         if (k == 0)
         {
             k = 1;
-            //---------- Визуализация 1 ------------------
+            //---------- Визуализация 2 ------------------
             vector<CircleShape> draw_vertices = vector<CircleShape>();
 
             for (int i = 0; i < sz; i++)
@@ -437,7 +548,10 @@ int main()
                         Text draw_c_f;
                         draw_c_f.setFont(font);
                         draw_c_f.setCharacterSize(20);
-                        draw_c_f.setString(to_string(graph[not_managed_vertexes[i]][not_managed_vertexes[j]].c) + "," + to_string(graph[not_managed_vertexes[i]][not_managed_vertexes[j]].flow));
+                        if(graph[not_managed_vertexes[i]][not_managed_vertexes[j]].c != DBL_MAX)
+                            draw_c_f.setString(deleteUnImportantZeros(to_string(graph[not_managed_vertexes[i]][not_managed_vertexes[j]].c)) + " ; " + deleteUnImportantZeros(to_string(graph[not_managed_vertexes[i]][not_managed_vertexes[j]].flow)));
+                        else
+                            draw_c_f.setString("inf ; " + deleteUnImportantZeros(to_string(graph[not_managed_vertexes[i]][not_managed_vertexes[j]].flow)));
                         draw_c_f.setFillColor(Color::Yellow);
                         draw_c_f.setPosition((draw_vertices[not_managed_vertexes[i]].getPosition().x + 12.5 + draw_vertices[not_managed_vertexes[j]].getPosition().x + 12.5) / 2.0, (draw_vertices[not_managed_vertexes[i]].getPosition().y + 12.5 + draw_vertices[not_managed_vertexes[j]].getPosition().y + 12.5) / 2.0);
                         draw_c_f.setStyle(sf::Text::Bold);
@@ -467,9 +581,9 @@ int main()
             draw_max_flow.setFont(font);
             draw_max_flow.setCharacterSize(25);
             if(new_max_flow<=maxflow-d)
-                draw_max_flow.setString("V* = " + to_string(new_max_flow)+ " <= "+ to_string(maxflow)+" - "+ to_string(d));
+                draw_max_flow.setString("V* = " + deleteUnImportantZeros(to_string(new_max_flow)) + " <= " + deleteUnImportantZeros(to_string(maxflow)) + " - " + deleteUnImportantZeros(to_string(d)));
             else
-                draw_max_flow.setString("V* = " + to_string(new_max_flow) + " > " + to_string(maxflow) + " - " + to_string(d));
+                draw_max_flow.setString("V* = " + deleteUnImportantZeros(to_string(new_max_flow)) + " > " + deleteUnImportantZeros(to_string(maxflow)) + " - " + deleteUnImportantZeros(to_string(d)));
             draw_max_flow.setFillColor(Color::Yellow);
             draw_max_flow.setPosition(10, 10);
             draw_max_flow.setStyle(sf::Text::Bold);
