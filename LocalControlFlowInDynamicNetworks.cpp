@@ -251,9 +251,9 @@ double PossibleToLowMaxFlow(double d, double maxflow)
     auto new_max_flow = MaxFlow();
 
     //выводим результат и сеть
-    cout << "Новый макс. поток = " << new_max_flow << endl;
+    cout << "\nНовый макс. поток = " << new_max_flow << endl;
     print_graph();
-    cout << "Новый мин. разрез :" << endl;
+    cout << "\nНовый мин. разрез :" << endl;
     print_min_razrez();
 
     //делаем вывод
@@ -264,9 +264,9 @@ double PossibleToLowMaxFlow(double d, double maxflow)
     for (auto v : managed_vertexes)
         cout << v << ", ";
     if (maxflow - new_max_flow >= d)
-        cout << "на значение " << d << " можно уменьшить максимальный поток в сети" << endl;
+        cout << "на значение " << d << " можно уменьшить максимальный поток в сети." << endl;
     else
-        cout << "на значение " << d << " нельзя уменьшить максимальный поток в сети" << endl;
+        cout << "на значение " << d << " нельзя уменьшить максимальный поток в сети." << endl;
 
     return new_max_flow;
 }
@@ -467,13 +467,13 @@ int main()
 
             StopFlow();
 
-            cout << "\nВведите значение, на которое Вы хотели бы уменьшить максимальный поток в сети : " << endl;
+            cout << "\nВведите значение, на которое Вы хотели бы уменьшить максимальный поток в сети : ";
             cin >> d;
             cin.clear();
             cin.ignore();
 
             //cout << "\nВведите множество управляемых вершин (номера вершин от 0 до " << sz - 2 << " )" << endl;
-            cout << "\nВведите множество управляемых вершин (номера вершин от 0 до " << N - 2 << " )" << endl;
+            cout << "\nВведите множество управляемых вершин (номера вершин от 0 до " << N - 2 << " ) : ";
             string S;
             getline(cin, S);
             int i = 0;
@@ -501,7 +501,9 @@ int main()
     }
 
     k = 0;
-    RenderWindow window2(VideoMode(1400, 800), L"Изменённая сеть", Style::Default);
+
+    const wchar_t* window2Name = T == 1 ? L"Изменённая сеть" : L"Временная развёртка изменённой сети";
+    RenderWindow window2(VideoMode(1400, 800), window2Name, Style::Default);
 
     window2.setVerticalSyncEnabled(true);
 
