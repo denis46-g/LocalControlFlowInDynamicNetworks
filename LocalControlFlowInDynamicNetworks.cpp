@@ -14,8 +14,10 @@
 using namespace sf;
 using namespace std;
 
-string filename = "input2.txt";
+string input_filename = "input2.txt";
+string output_filename = "output.txt";
 ifstream fin;
+ofstream fout;
 int N, sz;
 int T;
 
@@ -93,7 +95,7 @@ void CreateGraphTimeScan(int N, int T) {
 //создание графа
 void Create_Graph()
 {
-    fin.open(filename);
+    fin.open(input_filename);
 
     fin >> N >> T;
     if (T == 1)
@@ -187,6 +189,19 @@ double MaxFlow()
             }
         }
     }
+
+    //запись графа после прохождения потока
+    fout.open(output_filename, ios_base::app);
+    fout << endl;
+    for (int i = 0; i < sz - 1; i++) {
+        fout << i << " : ";
+        for (int j = 0; j < sz; j++)
+            if (graph[i][j].c > 0)
+                fout << j << " {" << graph[i][j].c << ";" << graph[i][j].flow << "}; ";
+        fout << endl;
+    }
+
+    fout.close();
 
     return res;
 }
